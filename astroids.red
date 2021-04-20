@@ -11,7 +11,14 @@ ship: make object! [
     pos: reduce [ size/x / 2 size/y / 2 ]
     rot: 0
 
-    graphic: [ fill-pen green pen yellow polygon 0x-30 10x10 0x0 -10x10 ]
+    graphic: reduce [
+	'translate to-pair pos
+	'rotate rot
+	'fill-pen green
+	'pen yellow
+	'polygon 0x-30 10x10 0x0 -10x10
+    ]
+
     wall-reactions: context [
 	wall-thickness: 30
 	k: 1.5
@@ -56,6 +63,8 @@ ship: make object! [
 
 	speed/1: speed/1 * 0.98
 	speed/2: speed/2 * 0.98
+	graphic/translate: to-pair pos
+	graphic/rotate: rot
 
 	;print [ 'pos pos 'speed speed 'rot rot 'acc acc keys-down mold keys-down ]
     ]
@@ -66,36 +75,48 @@ astroid: make object! [
     speed: [ 0  0 ]
     pos: size
 
-    graphic: [ fill-pen none pen red pen-width 3 polygon ]
+    graphic: reduce [ 'translate pos 'pen red 'polygon ]
 
     update: func [ /local  acc ][
 	pos/1: pos/1 + speed/1
 	pos/2: pos/2 + speed/2
 	
 	case/all [
-	    pos/1 > 0 [ pos/1: pos/1 + size/1 ]
-	    pos/2 > 0 [ pos/2: pos/2 + size/2 ]
+	    pos/1 < 0 [ pos/1: pos/1 + size/1 ]
+	    pos/2 < 0 [ pos/2: pos/2 + size/2 ]
 	    pos/1 > size/1 [ pos/1: pos/1 - size/1 ]
 	    pos/2 > size/2 [ pos/2: pos/2 - size/2 ]
 	]
+	graphic/translate: to-pair pos
     ]
 
-    init: func [ /local alpha ][
+    init: func [ /local alpha r ][
 	pos: reduce [ random size/x random size/y ]
-	speed:  random [ -5 + random 10 -5 + random 10 ]
+	speed:  reduce [ 5 - random 10  5 - random 10 ]
 	alpha: 0 
 	until [
-	    append graphic as-pair (random 50 ) * sine alpha  (random 50 ) * cosine alpha
-	    alpha: alpha + random 60
+	    append graphic as-pair 40 + (r: random 20 ) * cosine alpha  40 + r * sine alpha
+	    alpha: alpha + 20 + random 50
 	    alpha > 360 
 	]
     ]
 ]
 
 astroids: context [
-    instanes: []
+    instances: []
     graphic: []
-    
+    init: func [ /local a ][
+	loop 20 [
+	    append instances a: make astroid [ init ]
+	    repend graphic [ 'push a/graphic ]
+	]
+    ]
+    update: func [ /local a ][
+	foreach a instances [
+	    a/update
+	]
+    ]  
+    init
 ]
 
 bullets: context [
@@ -131,12 +152,6 @@ bullets: context [
     ]
 ]
 
-playground: reduce [ 'translate 0x0 
-    'push reduce [ 'translate to-pair ship/pos 'rotate ship/rot 'push ship/graphic ]
-    'push bullets/graphic
-]
-
-
 
 key-map: context [ 
     accelerate: #"W"
@@ -163,18 +178,23 @@ view/no-wait [
     on-key-down [ handle-key-down event ]
     on-key-up [ handle-key-up event ]
     b: box  800x800 #101020
-    rate time-step
-    on-time [
-	ship/update
-	face/draw/push/translate: to-pair ship/pos
-	face/draw/push/rotate: ship/rot
-	if key-down? key-map/shoot [
-	    bullets/add-bullet ship/pos ship/speed ship/rot
+	rate time-step
+	on-time [
+	    ship/update
+	    if key-down? key-map/shoot [
+		bullets/add-bullet ship/pos ship/speed ship/rot
+	    ]
+	    bullets/update
+	    astroids/update
+
+	    face/draw/translate: 0x0
 	]
-	bullets/update
-	face/draw/translate: 0x0
-    ]
-    draw playground
+	draw reduce [
+	    'translate 0x0 
+	    'push ship/graphic 
+	    'push bullets/graphic
+	    'push astroids/graphic
+	]
 
     cl: button "Close" #"^w" [ unview ]
 ]
