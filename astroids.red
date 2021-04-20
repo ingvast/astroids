@@ -35,7 +35,7 @@ ship: make object! [
 
     rot-speed: 8
 
-    update-step: func [ /local  acc ][
+    update: func [ /local  acc ][
 	acc: 0
 	if key-down? key-map/accelerate [ acc: 0.3 ]
 	if key-down? key-map/decellerate [ acc: -0.3 ]
@@ -67,33 +67,8 @@ astroid: make object! [
     pos: size
 
     graphic: [ fill-pen none pen red pen-width 3 polygon ]
-    wall-reactions: context [
-	wall-thickness: 30
-	k: 1.5
-	c: 0.2 * k
-	reaction: func [ x v ] [
-	     max 0 negate x * k  + ( v * c )
-	]
-	left: func [ pos speed ][
-	    reaction pos/1 - wall-thickness speed/1
-	]
-	right: func [ pos speed][
-	    negate reaction size/x - wall-thickness - pos/1 negate speed/1
-	]
-	top: func [ pos speed ][
-	    reaction pos/2 - wall-thickness speed/2
-	]
-	bot: func [ pos speed ][
-	    negate reaction size/y - wall-thickness - pos/2 negate speed/2
-	]
-    ]
-    hit: func [
-	{Function to run in case astroid is hit with bullet}
-	bullet
-    ][
-    ]
 
-    update-step: func [ /local  acc ][
+    update: func [ /local  acc ][
 	pos/1: pos/1 + speed/1
 	pos/2: pos/2 + speed/2
 	
@@ -104,10 +79,23 @@ astroid: make object! [
 	    pos/2 > size/2 [ pos/2: pos/2 - size/2 ]
 	]
     ]
-    init: func [ ][
-	
-    ]
 
+    init: func [ /local alpha ][
+	pos: reduce [ random size/x random size/y ]
+	speed:  random [ -5 + random 10 -5 + random 10 ]
+	alpha: 0 
+	until [
+	    append graphic as-pair (random 50 ) * sine alpha  (random 50 ) * cosine alpha
+	    alpha: alpha + random 60
+	    alpha > 360 
+	]
+    ]
+]
+
+astroids: context [
+    instanes: []
+    graphic: []
+    
 ]
 
 bullets: context [
@@ -121,7 +109,7 @@ bullets: context [
 	repend/only instances  [ copy start-pos copy velocity rot ]
     ]
 
-    update-bullets: func [ /local pos velocity rot remove-this ][
+    update: func [ /local pos velocity rot remove-this ][
 	clear graphic
 	remove-this: clear []
 	foreach bullet instances [
@@ -177,13 +165,13 @@ view/no-wait [
     b: box  800x800 #101020
     rate time-step
     on-time [
-	ship/update-step
+	ship/update
 	face/draw/push/translate: to-pair ship/pos
 	face/draw/push/rotate: ship/rot
 	if key-down? key-map/shoot [
 	    bullets/add-bullet ship/pos ship/speed ship/rot
 	]
-	bullets/update-bullets
+	bullets/update
 	face/draw/translate: 0x0
     ]
     draw playground
