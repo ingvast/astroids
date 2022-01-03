@@ -1,5 +1,7 @@
-RED [
-	needs: 'view
+Red [
+	title: Astroids
+	author: {Johan Ingvast}
+	copyright: {Johan Ingvast 2021}
 ]
 
 size: 800x800
@@ -75,17 +77,26 @@ astroid: make object! [
     speed: [ 0  0 ]
     pos: size
 
-    graphic: reduce [ 'translate pos 'pen red 'polygon ]
+    graphic: reduce [ 'translate pos
+	    'fill-pen pink
+	    'line-width 3
+	    'pen red
+	    'polygon
+    ]
 
-    update: func [ /local  acc ][
+    pass: 60 
+
+    update: func [  ][
 	pos/1: pos/1 + speed/1
 	pos/2: pos/2 + speed/2
 	
+	pos-before: copy pos
 	case/all [
-	    pos/1 < 0 [ pos/1: pos/1 + size/1 ]
-	    pos/2 < 0 [ pos/2: pos/2 + size/2 ]
-	    pos/1 > size/1 [ pos/1: pos/1 - size/1 ]
-	    pos/2 > size/2 [ pos/2: pos/2 - size/2 ]
+	    pos/1 < negate pass [ pos/1: pos/1 + size/1 + pass + pass ]
+	    pos/1 - pass > size/1 [ pos/1: pos/1 - size/1 - pass - pass ]
+
+	    pos/2 < negate pass [ pos/2: pos/2 + size/2 + pass + pass ]
+	    pos/2 - pass > size/2 [ pos/2: pos/2 - size/2 - pass - pass ]
 	]
 	graphic/translate: to-pair pos
     ]
@@ -106,7 +117,7 @@ astroids: context [
     instances: []
     graphic: []
     init: func [ /local a ][
-	loop 20 [
+	loop 100 [
 	    append instances a: make astroid [ init ]
 	    repend graphic [ 'push a/graphic ]
 	]
@@ -173,28 +184,56 @@ context [
     set 'key-down? func [ key ][  pick keys-down key ]
 ]
 
+system/view/auto-sync?: false
+
 
 view/no-wait [
     on-key-down [ handle-key-down event ]
     on-key-up [ handle-key-up event ]
-    b: box  800x800 #101020
-	rate time-step
-	on-time [
-	    ship/update
-	    if key-down? key-map/shoot [
-		bullets/add-bullet ship/pos ship/speed ship/rot
-	    ]
-	    bullets/update
-	    astroids/update
-
-	    face/draw/translate: 0x0
-	]
+    game-box: box  800x800 #101020
+	;rate time-step
+	;on-time [ ]
 	draw reduce [
 	    'translate 0x0 
-	    'push ship/graphic 
 	    'push bullets/graphic
 	    'push astroids/graphic
+	    'push ship/graphic 
 	]
 
     cl: button "Close" #"^w" [ unview ]
 ]
+print "Presented"
+
+screen-update: does [
+    ship/update
+    if key-down? key-map/shoot [
+	bullets/add-bullet ship/pos ship/speed ship/rot
+    ]
+    bullets/update
+    astroids/update
+    game-box/draw/translate: 0x0
+    show game-box
+]
+
+do-events/no-wait
+
+recycle/off
+
+ref-frequency: 20
+current-wait: 0.05
+last-event-time: now/time/precise
+
+forever [
+    screen-update
+    do-events/no-wait
+    this-time: now/time/precise
+    since: this-time - last-event-time
+    last-event-time: this-time
+    either since < ( 1 / ref-frequency ) [
+	wait 1 / ref-frequency - since
+    ][
+	print [ "Did not make it" since ]
+    ]
+    recycle
+]
+
